@@ -43,9 +43,11 @@
    
    $reset = *reset;
    
-   // PC logic - Increments to the nnext instruction (+4 bytes)
+   // PC logic - Increments to the next instruction (+4 bytes)
    $pc[31:0] = >>1$next_pc[31:0];
-   $next_pc[31:0] = ($reset == 1'b1) ? 32'b0 : $pc[31:0] + 4;
+   $next_pc[31:0] =
+      ($reset == 1'b1) ? 32'b0 : 
+      ($taken_br) ? $br_tgt_pc : $pc[31:0] + 4;
    
    // Instruction Cache
    `READONLY_MEM($pc, $$instr[31:0]);
@@ -94,10 +96,10 @@
    // Using $opcode, funct3 funct7, instr[30]
    $dec_bits[10:0] = {$instr[30],$funct3,$opcode};
    
-   $is_beq = $dec_bits ==? 11'bx_000_1100011; 
-   $is_bne = $dec_bits ==? 11'bx_001_1100011; 
+   $is_beq = $dec_bits ==? 11'bx_000_1100011;
+   $is_bne = $dec_bits ==? 11'bx_001_1100011;
    $is_blt = $dec_bits ==? 11'bx_100_1100011;
-   $is_bge = $dec_bits ==? 11'bx_101_1100011; 
+   $is_bge = $dec_bits ==? 11'bx_101_1100011;
    $is_bltu = $dec_bits ==? 11'bx_110_1100011;
    $is_bgeu = $dec_bits ==? 11'bx_111_1100011;
 
@@ -109,6 +111,18 @@
       $is_add ? $src1_value + $src2_value :
       32'b0;
    
+   // Branch logic
+   $taken_br =
+      $is_beq ? ($src1_value == $src2_value) :
+      $is_bne ? ($src1_value != $src2_value) :
+      $is_blt ? ($src1_value < $src2_value) ^ ($src1_value[31] != $src2_value[31]) :
+      $is_bge ? ($src1_value >= $src2_value) ^ ($src1_value[31] != $src2_value[31]) :
+      $is_bltu ? ($src1_value < $src2_value) :
+      $is_bgeu ? ($src1_value >= $src2_value) :
+      1'b0;
+
+   $br_tgt_pc[31:0] = $pc + $imm;
+
    // Supress logs
    `BOGUS_USE($rd $rd_valid $rs1 $rs1_valid $rs2 $rs2_valid
       $funct3 $funct3_valid $funct7 $funct7_valid $imm_valid
@@ -117,7 +131,7 @@
    
    
    // Assert these to end simulation (before Makerchip cycle limit).
-   *passed = 1'b0;
+   *passed = 1'b1;
    *failed = *cyc_cnt > M4_MAX_CYC;
    
    m4+rf(32, 32, $reset, $rd_valid, $rd[4:0], $result[31:0], $rs1_valid, $rs1[4:0], $src1_value, $rs2_valid, $rs2[4:0], $src2_value)
