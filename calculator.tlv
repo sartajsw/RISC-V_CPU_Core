@@ -15,14 +15,19 @@
 \TLV
    $reset = *reset;
 
+   // Flop the $out signal and input it into $val1
    $val1[31:0] = >>1$out;
+   // Get randomized data for tests
    $val2[31:0] = {28'b0, $val2_rand[3:0]};
    
+   // Perform the calculations
    $sum[31:0] = $val1[31:0] + $val2[31:0];
    $diff[31:0] = $val1[31:0] - $val2[31:0];
    $prod[31:0] = $val1[31:0] * $val2[31:0];
    $quot[31:0] = $val1[31:0] / $val2[31:0];
    
+   // Select the $out signal from the calculated options
+   // This is a mux with a reset signal
    $out[31:0] =
       ($reset == 1'b1) ? 32'b0 :
       ($op[1:0] == 2'b11) ? $quot[31:0] :
